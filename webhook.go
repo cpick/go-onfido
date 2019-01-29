@@ -27,12 +27,18 @@ const (
 	WebhookEnvironmentSandbox WebhookEnvironment = "sandbox"
 	WebhookEnvironmentLive    WebhookEnvironment = "live"
 
-	WebhookEventReportCompleted     WebhookEvent = "report.completed"
-	WebhookEventReportWithdrawn     WebhookEvent = "report.withdrawn"
-	WebhookEventCheckCompleted      WebhookEvent = "check.completed"
-	WebhookEventCheckStarted        WebhookEvent = "check.started"
-	WebhookEventCheckFormOpened     WebhookEvent = "check.form_opened"
-	WebhookEventCheckFormCompmleted WebhookEvent = "check.form_completed"
+	WebhookEventReportWithdrawn        WebhookEvent = "report.withdrawn"
+	WebhookEventReportResumed          WebhookEvent = "report.resumed"
+	WebhookEventReportCancelled        WebhookEvent = "report.cancelled"
+	WebhookEventReportAwaitingApproval WebhookEvent = "report.awaiting_approval"
+	WebhookEventReportInitiated        WebhookEvent = "report.initiated"
+	WebhookEventReportCompleted        WebhookEvent = "report.completed"
+	WebhookEventCheckStarted           WebhookEvent = "check.started"
+	WebhookEventCheckReopened          WebhookEvent = "check.reopened"
+	WebhookEventCheckWithdrawn         WebhookEvent = "check.withdrawn"
+	WebhookEventCheckCompleted         WebhookEvent = "check.completed"
+	WebhookEventCheckFormOpened        WebhookEvent = "check.form_opened"
+	WebhookEventCheckFormCompleted     WebhookEvent = "check.form_completed"
 )
 
 // Webhook errors
