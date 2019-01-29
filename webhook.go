@@ -1,6 +1,8 @@
 package onfido
 
 import (
+	"bytes"
+	"context"
 	"crypto/hmac"
 	"crypto/sha1"
 	"encoding/hex"
@@ -11,10 +13,26 @@ import (
 	"os"
 )
 
+// WebhookEnvironment represents an environment type (see `WebhookEnvironment*` constants for possible values)
+type WebhookEnvironment string
+
+// WebhookEvent represents an event type (see `WebhookEvent*` constants for possible values)
+type WebhookEvent string
+
 // Constants
 const (
 	WebhookSignatureHeader = "X-Signature"
 	WebhookTokenEnv        = "ONFIDO_WEBHOOK_TOKEN"
+
+	WebhookEnvironmentSandbox WebhookEnvironment = "sandbox"
+	WebhookEnvironmentLive    WebhookEnvironment = "live"
+
+	WebhookEventReportCompleted     WebhookEvent = "report.completed"
+	WebhookEventReportWithdrawn     WebhookEvent = "report.withdrawn"
+	WebhookEventCheckCompleted      WebhookEvent = "check.completed"
+	WebhookEventCheckStarted        WebhookEvent = "check.started"
+	WebhookEventCheckFormOpened     WebhookEvent = "check.form_opened"
+	WebhookEventCheckFormCompmleted WebhookEvent = "check.form_completed"
 )
 
 // Webhook errors
@@ -26,6 +44,30 @@ var (
 // Webhook represents a webhook handler
 type Webhook struct {
 	Token string
+}
+
+// WebhookRefRequest represents a webhook request to Onfido API
+type WebhookRefRequest struct {
+	URL string `json:"url"` // must be HTTPS
+	// Enabled   bool                 `json:"enabled"`                // omitted so it defaults to true
+	Environments []WebhookEnvironment `json:"environments,omitempty"` // defaults to both
+	Events       []WebhookEvent       `json:"events,omitempty"`       // defaults to all
+}
+
+// WebhookRef represents a webhook in Onfido API
+type WebhookRef struct {
+	ID           string               `json:"id,omitempty"`
+	URL          string               `json:"url,omitempty"`
+	Enabled      bool                 `json:"enabled"`
+	Href         string               `json:"href,omitempty"`
+	Token        string               `json:"token,omitempty"`
+	Environments []WebhookEnvironment `json:"environments,omitempty"`
+	Events       []WebhookEvent       `json:"events,omitempty"`
+}
+
+// WebhookRefs represents a list of webhooks in Onfido API
+type WebhookRefs struct {
+	Webhooks []*WebhookRef `json:"webhooks"`
 }
 
 // WebhookRequest represents an incoming webhook request from Onfido
@@ -94,4 +136,55 @@ func (wh *Webhook) ParseFromRequest(req *http.Request) (*WebhookRequest, error) 
 	}
 
 	return &wr, nil
+}
+
+// CreateWebhook register a new webhook.
+// see https://documentation.onfido.com/#register-webhook
+func (c *Client) CreateWebhook(ctx context.Context, wr WebhookRefRequest) (*WebhookRef, error) {
+	jsonStr, err := json.Marshal(wr)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := c.newRequest("POST", "/webhooks", bytes.NewBuffer(jsonStr))
+	if err != nil {
+		return nil, err
+	}
+
+	var resp WebhookRef
+	_, err = c.do(ctx, req, &resp)
+	return &resp, err
+}
+
+// WebhookRefIter represents a webhook iterator
+type WebhookRefIter struct {
+	*iter
+}
+
+// Webhook returns the current item in the iterator as a WebhookRef.
+func (i *WebhookRefIter) Webhook() *WebhookRef {
+	return i.Current().(*WebhookRef)
+}
+
+// ListWebhooks retrieves the list of webhooks.
+// see https://documentation.onfido.com/#list-webhooks
+func (c *Client) ListWebhooks() *WebhookRefIter {
+	handler := func(body []byte) ([]interface{}, error) {
+		var r WebhookRefs
+		if err := json.Unmarshal(body, &r); err != nil {
+			return nil, err
+		}
+
+		values := make([]interface{}, len(r.Webhooks))
+		for i, v := range r.Webhooks {
+			values[i] = v
+		}
+		return values, nil
+	}
+
+	return &WebhookRefIter{&iter{
+		c:       c,
+		nextURL: "/webhooks/",
+		handler: handler,
+	}}
 }
